@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 #include <stack>
+#include <functional>
+
 
 using namespace std;
 
@@ -14,6 +16,7 @@ enum class Color {
 struct Person {
     Color color = Color::WHITE;
     int scc_id = -1;
+    int value = 0;
 };
 
 struct SCC {
@@ -36,31 +39,59 @@ class TugaNet {
         people[personId].color = color;
     }
 
-    void push_friends(int personId, vector<vector<int>>& edges, stack<int>& queue) {
+    void push_friends(int personId, vector<vector<int>>& edges, stack<int>& stack) {
         for (int friendId : edges[personId]) {
             if (get_person_color(friendId) == Color::WHITE) {
-                queue.push(friendId);
+                stack.push(friendId);
+            }
+            else if (get_person_color(friendId) == Color::BLACK){
+                if (people[personId].value <= people[friendId].value ){
+                    people[personId].value = people[friendId].value+1;
+                }
+            }
+            else{
+                if (people[personId].value <= people[friendId].value){
+                    people[personId].value = people[friendId].value;
+                }
             }
         }
     }
 
+    void update_value(int personId, vector<vector<int>>& edges, stack<int>& stack){
+        for (int friendId : edges[personId]) {
+            if (get_person_color(friendId) == Color::BLACK){
+                if (people[personId].value <= people[friendId].value){
+                    people[personId].value = people[friendId].value;
+                }
+            }
+            else{
+                if (people[personId].value <= people[friendId].value){
+                    people[personId].value = people[friendId].value;
+                }
+            }
+        }
+    }
+
+
     void dfs_visit(int sourceId, vector<vector<int>>& edges, function<void(int)> actionOnComplete) {
-        stack<int> queue;
-        queue.push(sourceId);
-        while (!queue.empty()) {
-            int currPersonId = queue.top();
+        stack<int> stack;
+        stack.push(sourceId);
+        while (!stack.empty()) {
+            int currPersonId = stack.top();
             switch (get_person_color(currPersonId)) {
                 case Color::WHITE: {
                     set_person_color(currPersonId, Color::GREY);
-                    push_friends(currPersonId, edges, queue);
+                    push_friends(currPersonId, edges, stack);
                     break;
                 }
                 case Color::GREY: {
                     set_person_color(currPersonId, Color::BLACK);
+                    update_value(currPersonId, edges, stack);
                     actionOnComplete(currPersonId);
+                    break;
                 }
                 default: {
-                    queue.pop();
+                    stack.pop();
                     break;
                 }
             }
@@ -70,9 +101,7 @@ class TugaNet {
     void dfs() {
         for (size_t i = 0; i < people.size(); i++) {
             if (people[i].color == Color::WHITE) {
-                dfs_visit(i, outgoingEdges, [&](int id) {
-                    visitedPeople.push(id);
-                });
+                dfs_visit(i, outgoingEdges, [&](int id) {visitedPeople.push(id);});
             }
         }
     }
@@ -90,11 +119,9 @@ class TugaNet {
     void build_SCC(int sourceId) {
         SCC scc;
 
-        dfs_visit(sourceId, incomingEdges, [&](int id) {
-            people[id].scc_id = sccs.size();
-            scc.people.push_back(id);
-        });
-
+        dfs_visit(sourceId, incomingEdges, [&](int id) {people[id].scc_id = sccs.size(); 
+                                                        scc.people.push_back(id);
+                                                        });
         sccs.push_back(scc);
     }
 
@@ -110,8 +137,15 @@ class TugaNet {
         }
     }
 
+    void clear_values(){
+        for (int personId=0; personId<(int)people.size();personId++){
+            people[personId].value=0;
+        }
+    }
+
     void compress() {
         dfs();
+        clear_values();
         build_SCCs();
     }
 
@@ -140,21 +174,33 @@ class TugaNet {
 
         int calc_max_propagation() {
             compress();
-            vector<int> queue;
-            push_SCC_neigbours(0, queue);
-            return 0;
+            int max_propagation = 0;
+            for (Person person : people){
+                if (person.value > max_propagation){
+                    max_propagation = person.value;
+                }
+            }
+            //vector<int> queue;
+            //push_SCC_neigbours(0, queue);
+            return max_propagation;
         }    
 };
 
 TugaNet buildTugaNet() {
     int numPeople, numoutgoingEdges;
-    scanf("%d %d", &numPeople, &numoutgoingEdges);
+    if (scanf("%d %d", &numPeople, &numoutgoingEdges) != 2) {
+        fprintf(stderr, "Error reading input for numPeople and numOutgoingEdges\n");
+        exit(EXIT_FAILURE);
+    }
 
     TugaNet tugaNet(numPeople);
 
     for (int i = 0; i < numoutgoingEdges; i++) {
         int person, personFriend;
-        scanf("%d %d", &person, &personFriend);
+        if (scanf("%d %d", &person, &personFriend) != 2) {
+            fprintf(stderr, "Error reading input for person and personFriend\n");
+            exit(EXIT_FAILURE);
+        }
         tugaNet.addEdge(person, personFriend);
     }
 
