@@ -194,7 +194,6 @@ TugaNet buildTugaNet() {
     }
 
     TugaNet tugaNet(numPeople);
-
     for (int i = 0; i < numoutgoingEdges; i++) {
         int person, personFriend;
         if (scanf("%d %d", &person, &personFriend) != 2) {
